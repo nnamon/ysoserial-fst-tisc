@@ -14,12 +14,33 @@ public class GeneratePayload {
 	private static final int USAGE_CODE = 64;
 
 	public static void main(final String[] args) {
-		if (args.length != 2) {
-			printUsage();
-			System.exit(USAGE_CODE);
+		// Parse the command line arguments.
+		boolean fst = false;
+		String payloadType;
+		String command;
+
+		// Shortest command line arguments would be payload and command only.
+		if (args.length < 2) {
+			printUsageAndExit();
+			return;
 		}
-		final String payloadType = args[0];
-		final String command = args[1];
+		if (args.length == 2) {
+			// Handle the shortest case.
+			payloadType = args[0];
+			command = args[1];
+		} else if (args.length == 3) {
+			// Handle the case where the -fst flag might be set.
+			if (!args[0].equals("-fst")) {
+				printUsageAndExit();
+				return;
+			}
+			fst = true;
+			payloadType = args[1];
+			command = args[2];
+		} else {
+			printUsageAndExit();
+			return;
+		}
 
 		final Class<? extends ObjectPayload> payloadClass = Utils.getPayloadClass(payloadType);
 		if (payloadClass == null) {
@@ -33,7 +54,11 @@ public class GeneratePayload {
 			final ObjectPayload payload = payloadClass.newInstance();
 			final Object object = payload.getObject(command);
 			PrintStream out = System.out;
-			Serializer.serialize(object, out);
+			if (fst) {
+				FSTSerializer.serialize(object, out);
+			} else {
+				Serializer.serialize(object, out);
+			}
 			ObjectPayload.Utils.releasePayload(payload, object);
 		} catch (Throwable e) {
 			System.err.println("Error while generating or serializing payload");
@@ -41,6 +66,11 @@ public class GeneratePayload {
 			System.exit(INTERNAL_ERROR_CODE);
 		}
 		System.exit(0);
+	}
+
+	private static void printUsageAndExit() {
+		printUsage();
+		System.exit(USAGE_CODE);
 	}
 
 	private static void printUsage() {
